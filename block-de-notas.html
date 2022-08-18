@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="block-de-notas.css" />
+    <title>Block de notas</title>
+  </head>
+  <body>
+    <section class="double">
+      <form class="crud-form" >
+        <input
+          type="text"
+          name="titulo"
+          placeholder="Escribe un título"
+        />
+
+        <textarea name="nota" placeholder="Tu nota..."></textarea>
+        <input class="btn-guardar" type="submit" value="Guardar" />
+        <input type="hidden" name="id">
+
+      </form>
+      <article class="history">
+        <section class="historial">
+          <h2>Tus notas</h2>
+          <table class="crud-table">
+            <tbody></tbody>
+          </table>
+        </section>
+      </article>
+      <template id="crud-template">
+        <tr>
+          <td class="titulo"></td></td>
+          <td>
+            <button class="edit">Editar</button>
+            <button class="delete">Eliminar</button>
+          </td>
+        </tr>
+      </template>
+      <!-- es un mecanismo para mantener el contenido HTML del lado del cliente que no se renderiza cuando se carga -->
+    </section>
+    <script>
+      const d = document,
+        $table = d.querySelector(".crud-table"),
+        $form = d.querySelector(".crud-form"),
+        $template = d.getElementById("crud-template").content,
+        $fragment = d.createDocumentFragment();
+
+      const getAll = async () => {
+        try {
+          let res = await fetch("http://localhost:3000/lista"), //peticion de tipo get, cuando no especidifamos el segundo parámetro sig q estamos haciendo peticion con el metodo GET
+            json = await res.json();
+
+          if (!res.ok) throw { status: res.status, statusText: res.statusText }; //si la respuesta ok es falsa arroja un mensaje de error
+
+          json.forEach((element) => {
+            $template.querySelector(".titulo").textContent = element.titulo;
+            $template.querySelector(".edit").dataset.id = element.id;
+            $template.querySelector(".edit").dataset.title = element.titulo;
+            $template.querySelector(".edit").dataset.note = element.nota;
+
+            $template.querySelector(".delete").dataset.id = element.id;
+
+            let $clone = d.importNode($template, true);
+            $fragment.appendChild($clone);
+          });
+
+          $table.querySelector("tbody").appendChild($fragment);
+        } catch (err) {
+          let message = err.statusText || "Ocurrió un error";
+          $table.insertAdjacentHTML(
+            "afterend",
+            `<p><b>${err.status}: ${message}</b></p>`
+          );
+        }
+      };
+
+      d.addEventListener("DOMContentLoaded", getAll);
+      //para agregar y eliminar un "santo" necesitamos el formularios y seleccionamos el submit
+      d.addEventListener("submit", async (e) => {
+        //el listener tiene que ser asincrono
+        if (e.target === $form) {
+          //la programacion se ejecuta cuando el obj q origina el evento sea igual a form
+          e.preventDefault(); // prevenimos el envio por defecto del form par apoder manipularlo
+          if (!e.target.id.value) {
+            // le preguntamos si su atributo id tiene valor, si no lo tiene es xq no ha sido creado y se va a crear, si lo  tiene es xq ya se creo y se va a modificar
+            //create - POST (ESTO ES PARA AGREGAR UN "SANTO")
+            try {
+              let options = {
+                  method: "POST",
+                  headers: {
+                    "Content-type": "application/json; charset=utf-8",
+                  },
+                  body: JSON.stringify({
+                    titulo: e.target.titulo.value,
+                    nota: e.target.nota.value
+                  }),
+                },
+                res = await fetch("http://localhost:3000/lista", options),
+                json = await res.json();
+              if (!res.ok)
+                throw { status: res.status, statusText: res.statusText }; //si la respuesta ok es falsa arroja un mensaje de error
+              location.reload();
+            } catch (err) {
+              let message = err.statusText || "Ocurrió un error";
+              $form.insertAdjacentHTML(
+                "afterend",
+                `<p><b>${err.status}: ${message}</b></p>`
+              );
+            }
+          } else {
+            //update - PUT (ESTO ES PARA EDITAR UN "SANTO")
+            try {
+              let options = {
+                  method: "PUT",
+                  headers: {
+                    "Content-type": "application/json; charset=utf-8",
+                  },
+                  body: JSON.stringify({
+                    titulo: e.target.titulo.value,
+                    nota: e.target.nota.value
+
+                  }),
+                },
+                res = await fetch(
+                  `http://localhost:3000/lista/${e.target.id.value}`,
+                  options
+                ), //especificando el id de la ruta
+                json = await res.json();
+              if (!res.ok)
+                throw { status: res.status, statusText: res.statusText }; //si la respuesta ok es falsa arroja un mensaje de error
+              location.reload();
+            } catch (err) {
+              let message = err.statusText || "Ocurrió un error";
+              $form.insertAdjacentHTML(
+                "afterend",
+                `<p><b>${err.status}: ${message}</b></p>`
+              );
+            }
+          }
+        }
+      });
+      d.addEventListener("click", async (e) => {
+
+        if (e.target.matches(".edit")) {
+          $form.titulo.value = e.target.dataset.title;
+          $form.nota.value = e.target.dataset.note
+          $form.id.value = e.target.dataset.id; // aunque el id no se ve se le agrega un id para que sea sub identificador unico y se pueda editar posteriormente
+        }
+        if (e.target.matches(".delete")) {
+          let isDelete = confirm(
+            `¿Estás seguro de eliminar el elemento ${e.target.dataset.id}?`
+          );
+
+          if (isDelete) {
+            //Delete - DELETE
+            try {
+              let options = {
+                  method: "DELETE",
+                  headers: {
+                    "Content-type": "application/json; charset=utf-8",
+                  },
+                },
+                res = await fetch(
+                  `http://localhost:3000/lista/${e.target.dataset.id}`,
+                  options
+                ), //especificando el id de la ruta
+                json = await res.json();
+              if (!res.ok)
+                throw { status: res.status, statusText: res.statusText }; //si la respuesta ok es falsa arroja un mensaje de error
+              location.reload();
+            } catch (err) {
+              let message = err.statusText || "Ocurrió un error";
+              alert(`Error: ${err.status}: ${message}`);
+            }
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
