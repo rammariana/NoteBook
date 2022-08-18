@@ -1,0 +1,9 @@
+{
+  "lista": [
+    {
+      "titulo": "Nueva nota",
+      "nota": "Este es un ejemplo de nota",
+      "id": 2
+    }
+  ]
+}
